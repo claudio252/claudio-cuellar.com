@@ -268,3 +268,160 @@ document.addEventListener('DOMContentLoaded', () => {
     window['ga-disable-G-5YP3MMRNWF'] = true;
   }
 });
+
+// Contact Form Submission
+document.addEventListener('DOMContentLoaded', () => {
+  const contactForm = document.querySelector('#contact form');
+  
+  if (contactForm) {
+    contactForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      // Get form elements
+      const nameInput = contactForm.querySelector('input[type="text"]');
+      const emailInput = contactForm.querySelector('input[type="email"]');
+      const messageTextarea = contactForm.querySelector('textarea');
+      const submitButton = contactForm.querySelector('button[type="submit"]');
+      
+      // Get form data
+      const formData = {
+        name: nameInput.value.trim(),
+        email: emailInput.value.trim(),
+        message: messageTextarea.value.trim()
+      };
+      
+      // Validate form data
+      if (!formData.name || !formData.email || !formData.message) {
+        showMessage('Please fill in all fields.', 'error');
+        return;
+      }
+      
+      // Disable submit button and show loading state
+      const originalButtonText = submitButton.textContent;
+      submitButton.disabled = true;
+      submitButton.textContent = 'Sending...';
+      submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+      
+      try {
+        // Make API call
+        const response = await fetch('https://claudio-cuellar.com/api/contacts/create/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData)
+        });
+        
+        if (response.ok) {
+          // Success - show success message and reset form
+          showMessage('Thank you! Your message has been sent successfully. I\'ll get back to you soon!', 'success');
+          contactForm.reset();
+          
+          // Track successful form submission
+          if (typeof trackEvent === 'function') {
+            trackEvent('contact_form_submit', {
+              success: true
+            });
+          }
+        } else {
+          // Handle HTTP errors
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.detail || errorData.message || 'Failed to send message. Please try again.';
+          showMessage(errorMessage, 'error');
+          
+          // Track failed form submission
+          if (typeof trackEvent === 'function') {
+            trackEvent('contact_form_submit', {
+              success: false,
+              error: response.status
+            });
+          }
+        }
+      } catch (error) {
+        // Handle network errors
+        console.error('Contact form error:', error);
+        showMessage('Network error. Please check your connection and try again.', 'error');
+        
+        // Track network error
+        if (typeof trackEvent === 'function') {
+          trackEvent('contact_form_submit', {
+            success: false,
+            error: 'network_error'
+          });
+        }
+      } finally {
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText;
+        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    });
+  }
+});
+
+// Function to show success/error messages
+function showMessage(message, type = 'success') {
+  // Remove any existing message
+  const existingMessage = document.querySelector('.contact-message');
+  if (existingMessage) {
+    existingMessage.remove();
+  }
+  
+  // Create message element
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `contact-message fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full`;
+  
+  if (type === 'success') {
+    messageDiv.classList.add('bg-green-500', 'text-white');
+    messageDiv.innerHTML = `
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        </svg>
+        <span>${message}</span>
+      </div>
+    `;
+  } else {
+    messageDiv.classList.add('bg-red-500', 'text-white');
+    messageDiv.innerHTML = `
+      <div class="flex items-center">
+        <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+        </svg>
+        <span>${message}</span>
+      </div>
+    `;
+  }
+  
+  // Add close button
+  const closeButton = document.createElement('button');
+  closeButton.className = 'ml-2 text-white hover:text-gray-200 transition-colors';
+  closeButton.innerHTML = '×';
+  closeButton.onclick = () => hideMessage(messageDiv);
+  messageDiv.querySelector('div').appendChild(closeButton);
+  
+  // Add to page
+  document.body.appendChild(messageDiv);
+  
+  // Animate in
+  setTimeout(() => {
+    messageDiv.classList.remove('translate-x-full');
+  }, 100);
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    hideMessage(messageDiv);
+  }, 5000);
+}
+
+// Function to hide message
+function hideMessage(messageDiv) {
+  if (messageDiv && messageDiv.parentNode) {
+    messageDiv.classList.add('translate-x-full');
+    setTimeout(() => {
+      if (messageDiv.parentNode) {
+        messageDiv.remove();
+      }
+    }, 300);
+  }
+}
